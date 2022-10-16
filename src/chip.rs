@@ -1,5 +1,7 @@
 use rand::Rng;
 
+use crate::instruction::Instruction;
+
 pub const RAM_PROGRAM_SPACE_START: usize = 0x200;
 pub const DISPLAY_WIDTH: usize = 64;
 pub const DISPLAY_HEIGHT: usize = 32;
@@ -29,13 +31,13 @@ pub struct Chip8 {
     vram: [u8; DISPLAY_WIDTH * DISPLAY_HEIGHT],
     registers: [u8; 16],
     index: usize,
-    pc: u16,
-    stack: Vec<u16>,
+    pc: usize,
+    stack: Vec<usize>,
     program_timer: u8,
     sound_timer: u8,
     keys: [bool; 16],
     should_draw: bool,
-    wait_for_input: Option<u8>,
+    wait_for_input: Option<usize>,
     rand: rand::rngs::ThreadRng,
 }
 
@@ -51,7 +53,7 @@ impl Chip8 {
             vram: [0; DISPLAY_WIDTH * DISPLAY_HEIGHT],
             registers: [0; 16],
             index: 0,
-            pc: RAM_PROGRAM_SPACE_START as u16,
+            pc: RAM_PROGRAM_SPACE_START,
             stack: Vec::with_capacity(16),
             program_timer: 0,
             sound_timer: 0,
@@ -70,9 +72,9 @@ impl Chip8 {
 
     pub fn cycle(&mut self) {
         if self.wait_for_input.is_none() {
-            let opcode = self.fetch_opcode();
+            let instruction = self.fetch_opcode();
             self.pc += 2;
-            self.interpret(opcode);
+            self.interpret(instruction);
             self.timer_tick();
         }
     }
@@ -98,129 +100,48 @@ impl Chip8 {
         self.keys[key] = pressed;
     }
 
-    fn fetch_opcode(&self) -> u16 {
-        let bytes = [self.ram[self.pc as usize], self.ram[self.pc as usize + 1]];
-
-        u16::from_be_bytes(bytes)
+    fn fetch_opcode(&self) -> Instruction {
+        let bytes = [self.ram[self.pc], self.ram[self.pc + 1]];
+        Instruction::from_be_bytes(bytes)
     }
 
-    fn interpret(&mut self, instruction: u16) {
-        match instruction & 0xF000 {
-            0x0000 => match instruction {
-                0x0000 => self.pc -= 2, // temp: stop execution
-                0x00E0 => self.clear(),
-                0x00EE => self.ret(),
-                _ => {
-                    // 0xxx is in some c8 programs a jump instruction
-                    let address = Self::fetch_address(instruction);
-                    self.jmp(address);
-                }
-            },
-            0x1000 => {
-                let address = Self::fetch_address(instruction);
-                self.jmp(address);
-            }
-            0x2000 => {
-                let address = Self::fetch_address(instruction);
-                self.call_subroutine(address);
-            }
-            0x3000 => {
-                let (r, v) = Self::fetch_register_and_value(instruction);
-                self.skeq_vr_xx(r, v);
-            }
-            0x4000 => {
-                let (r, v) = Self::fetch_register_and_value(instruction);
-                self.skne_vr_xx(r, v);
-            }
-            0x5000 => {
-                let (r1, r2, _) = Self::fetch_register_x_y_n(instruction);
-                self.skeq_vr_vx(r1, r2);
-            }
-            0x6000 => {
-                let (r, v) = Self::fetch_register_and_value(instruction);
-                self.mov_vr_xx(r, v);
-            }
-            0x7000 => {
-                let (r, v) = Self::fetch_register_and_value(instruction);
-                self.add_vr_xx(r, v);
-            }
-            0x8000 => {
-                let (r1, r2, _) = Self::fetch_register_x_y_n(instruction);
-                match instruction & 0x000F {
-                    0x0000 => self.mov_vr_vx(r1, r2),
-                    0x0001 => self.or_vr_vx(r1, r2),
-                    0x0002 => self.and_vr_vx(r1, r2),
-                    0x0003 => self.xor_vr_vx(r1, r2),
-                    0x0004 => self.add_vr_vx(r1, r2),
-                    0x0005 => self.sub_vr_vx(r1, r2),
-                    0x0006 => self.shr_vr(r1),
-                    0x0007 => self.rsb_vr_vx(r1, r2),
-                    0x000E => self.shl_vr(r1),
-                    _ => panic!("Invalid 0x8000 instruction {:#06x}", instruction),
-                }
-            }
-            0x9000 => {
-                let (r1, r2, _) = Self::fetch_register_x_y_n(instruction);
-                self.skne_vr_vx(r1, r2);
-            }
-            0xA000 => {
-                let address = Self::fetch_address(instruction);
-                self.mvi(address);
-            }
-            0xB000 => {
-                let address = Self::fetch_address(instruction);
-                self.jmi(address);
-            }
-            0xC000 => {
-                let (r, v) = Self::fetch_register_and_value(instruction);
-                self.rand(r, v);
-            }
-            0xD000 => {
-                let (r1, r2, n) = Self::fetch_register_x_y_n(instruction);
-                self.sprite(r1, r2, n);
-            }
-            0xE000 => {
-                let k = (instruction & 0x0F00) >> 8;
-                match instruction & 0x00FF {
-                    0x009E => self.skpr(k as u8),
-                    0x00A1 => self.skup(k as u8),
-                    _ => panic!("Invalid 0xE000 instruction {:#06x}", instruction),
-                }
-            }
-            0xF000 => {
-                let (r, _, _) = Self::fetch_register_x_y_n(instruction);
-                match instruction & 0x00FF {
-                    0x0007 => self.gdelay_vr(r),
-                    0x000A => self.key_vr(r),
-                    0x0015 => self.sdelay_vr(r),
-                    0x0018 => self.ssound_vr(r),
-                    0x001E => self.adi(r),
-                    0x0029 => self.font(r),
-                    0x0033 => self.bcd_vr(r),
-                    0x0055 => self.str_v0_vr(r),
-                    0x0065 => self.ldr_v0_vr(r),
-                    _ => panic!("Invalid 0xF000 instruction {:#06x}", instruction),
-                }
-            }
-            _ => panic!("Unimplemented instruction {:#06x}", instruction),
+    fn interpret(&mut self, instruction: Instruction) {
+        match instruction {
+            Instruction::Clear => self.clear(),
+            Instruction::ReturnSubroutine => self.ret(),
+            Instruction::Jump(addr) => self.jmp(addr),
+            Instruction::CallSubroutine(addr) => self.call_subroutine(addr),
+            Instruction::SkipEqToConst { register, value } => self.skeq_vr_xx(register, value),
+            Instruction::SkipNeToConst { register, value } => self.skne_vr_xx(register, value),
+            Instruction::SkipEqToReg { x, y } => self.skeq_vr_vx(x, y),
+            Instruction::MovConstToReg { dest, value } => self.mov_vr_xx(dest, value),
+            Instruction::AddConstToReg { dest, value } => self.add_vr_xx(dest, value),
+            Instruction::MovRegToReg { dest, src } => self.mov_vr_vx(dest, src),
+            Instruction::Or { dest, other } => self.or_vr_vx(dest, other),
+            Instruction::And { dest, other } => self.and_vr_vx(dest, other),
+            Instruction::Xor { dest, other } => self.xor_vr_vx(dest, other),
+            Instruction::AddRegToReg { dest, other } => self.add_vr_vx(dest, other),
+            Instruction::SubRegFromReg { dest, other } => self.sub_vr_vx(dest, other),
+            Instruction::ShiftRight(register) => self.shr_vr(register),
+            Instruction::SubnRegFromReg { dest, other } => self.rsb_vr_vx(dest, other),
+            Instruction::ShiftLeft(register) => self.shl_vr(register),
+            Instruction::SkipNeToReg { x, y } => self.skne_vr_vx(x, y),
+            Instruction::MovConstToI(addr) => self.mvi(addr),
+            Instruction::JumpI(addr) => self.jmi(addr),
+            Instruction::Rand { dest, mask } => self.rand(dest, mask),
+            Instruction::Sprite { x, y, height } => self.sprite(x, y, height),
+            Instruction::SkipIfPressed(key) => self.skpr(key),
+            Instruction::SkipIfReleased(key) => self.skup(key),
+            Instruction::GetDelay(dest) => self.gdelay_vr(dest),
+            Instruction::WaitKey(dest) => self.key_vr(dest),
+            Instruction::SetDelay(delay) => self.sdelay_vr(delay),
+            Instruction::SetSoundDelay(delay) => self.ssound_vr(delay),
+            Instruction::AddToI(register) => self.adi(register),
+            Instruction::LoadFont(character) => self.font(character),
+            Instruction::StoreBcd(src) => self.bcd_vr(src),
+            Instruction::Store(to) => self.str_v0_vr(to),
+            Instruction::Load(to) => self.ldr_v0_vr(to),
         }
-    }
-
-    fn fetch_register_and_value(opcode: u16) -> (u8, u8) {
-        let register = (opcode & 0x0F00) >> 8;
-        let value = opcode & 0x00FF;
-        (register as u8, value as u8)
-    }
-
-    fn fetch_register_x_y_n(opcode: u16) -> (u8, u8, u8) {
-        let r1 = (opcode & 0x0F00) >> 8;
-        let r2 = (opcode & 0x00F0) >> 4;
-        let n = opcode & 0x000F;
-        (r1 as u8, r2 as u8, n as u8)
-    }
-
-    fn fetch_address(opcode: u16) -> u16 {
-        opcode & 0x0FFF
     }
 
     fn timer_tick(&mut self) {
@@ -243,122 +164,122 @@ impl Chip8 {
         }
     }
 
-    fn jmp(&mut self, addr: u16) {
+    fn jmp(&mut self, addr: usize) {
         self.pc = addr;
     }
 
-    fn call_subroutine(&mut self, addr: u16) {
+    fn call_subroutine(&mut self, addr: usize) {
         self.stack.push(self.pc);
         self.jmp(addr);
     }
 
-    fn skeq_vr_xx(&mut self, register: u8, value: u8) {
-        if self.registers[register as usize] == value {
+    fn skeq_vr_xx(&mut self, register: usize, value: u8) {
+        if self.registers[register] == value {
             self.pc += 2;
         }
     }
 
-    fn skne_vr_xx(&mut self, register: u8, value: u8) {
-        if self.registers[register as usize] != value {
+    fn skne_vr_xx(&mut self, register: usize, value: u8) {
+        if self.registers[register] != value {
             self.pc += 2;
         }
     }
 
-    fn skeq_vr_vx(&mut self, r1: u8, r2: u8) {
-        if self.registers[r1 as usize] == self.registers[r2 as usize] {
+    fn skeq_vr_vx(&mut self, rx: usize, ry: usize) {
+        if self.registers[rx] == self.registers[ry] {
             self.pc += 2;
         }
     }
 
-    fn mov_vr_xx(&mut self, r: u8, xx: u8) {
-        self.registers[r as usize] = xx;
+    fn mov_vr_xx(&mut self, dest: usize, value: u8) {
+        self.registers[dest] = value;
     }
 
-    fn add_vr_xx(&mut self, register: u8, value: u8) {
-        let result = self.registers[register as usize] as u16 + value as u16;
+    fn add_vr_xx(&mut self, dest: usize, value: u8) {
+        let result = self.registers[dest] as u16 + value as u16;
 
         // Discard any overflow
-        self.registers[register as usize] = result as u8;
+        self.registers[dest] = result as u8;
     }
 
-    fn mov_vr_vx(&mut self, r1: u8, r2: u8) {
-        self.registers[r1 as usize] = self.registers[r2 as usize];
+    fn mov_vr_vx(&mut self, dest: usize, src: usize) {
+        self.registers[dest] = self.registers[src];
     }
 
-    fn or_vr_vx(&mut self, r1: u8, r2: u8) {
-        self.registers[r1 as usize] = self.registers[r1 as usize] | self.registers[r2 as usize];
+    fn or_vr_vx(&mut self, dest: usize, other: usize) {
+        self.registers[dest] |= self.registers[other];
     }
 
-    fn and_vr_vx(&mut self, r1: u8, r2: u8) {
-        self.registers[r1 as usize] = self.registers[r1 as usize] & self.registers[r2 as usize];
+    fn and_vr_vx(&mut self, dest: usize, other: usize) {
+        self.registers[dest] &= self.registers[other];
     }
 
-    fn xor_vr_vx(&mut self, r1: u8, r2: u8) {
-        self.registers[r1 as usize] = self.registers[r1 as usize] ^ self.registers[r2 as usize];
+    fn xor_vr_vx(&mut self, dest: usize, other: usize) {
+        self.registers[dest] ^= self.registers[other];
     }
 
-    fn add_vr_vx(&mut self, r1: u8, r2: u8) {
-        let x = self.registers[r1 as usize];
-        let y = self.registers[r2 as usize];
+    fn add_vr_vx(&mut self, dest: usize, other: usize) {
+        let x = self.registers[dest];
+        let y = self.registers[other];
 
         let (res, carry) = x.overflowing_add(y);
 
-        self.registers[r1 as usize] = res;
+        self.registers[dest] = res;
         self.registers[15] = carry as u8;
     }
 
-    fn sub_vr_vx(&mut self, r1: u8, r2: u8) {
-        let x = self.registers[r1 as usize];
-        let y = self.registers[r2 as usize];
+    fn sub_vr_vx(&mut self, dest: usize, other: usize) {
+        let x = self.registers[dest];
+        let y = self.registers[other];
 
-        self.registers[r1 as usize] = x.wrapping_sub(y);
+        self.registers[dest] = x.wrapping_sub(y);
         self.registers[15] = (x >= y) as u8;
     }
 
-    fn shr_vr(&mut self, r: u8) {
-        let src = self.registers[r as usize];
+    fn shr_vr(&mut self, r: usize) {
+        let src = self.registers[r];
         self.registers[15] = src & 0b0000_0001; // Store least signifigant bit in the flag
-        self.registers[r as usize] = src >> 1;
+        self.registers[r] >>= 1;
     }
 
-    fn rsb_vr_vx(&mut self, r1: u8, r2: u8) {
-        let x = self.registers[r1 as usize];
-        let y = self.registers[r2 as usize];
+    fn rsb_vr_vx(&mut self, dest: usize, other: usize) {
+        let x = self.registers[dest];
+        let y = self.registers[other];
 
         self.registers[15] = (y >= x) as u8;
-        self.registers[r1 as usize] = y.wrapping_sub(x);
+        self.registers[dest] = y.wrapping_sub(x);
     }
 
-    fn shl_vr(&mut self, r: u8) {
-        let src = self.registers[r as usize];
+    fn shl_vr(&mut self, r: usize) {
+        let src = self.registers[r];
         self.registers[15] = (src & 0b1000_0000) >> 7; // Store most signifigant bit in the flag
-        self.registers[r as usize] = src << 1;
+        self.registers[r] <<= 1;
     }
 
-    fn skne_vr_vx(&mut self, r1: u8, r2: u8) {
-        if self.registers[r1 as usize] != self.registers[r2 as usize] {
+    fn skne_vr_vx(&mut self, rx: usize, ry: usize) {
+        if self.registers[rx] != self.registers[ry] {
             self.pc += 2;
         }
     }
 
-    fn mvi(&mut self, address: u16) {
-        self.index = address as usize;
+    fn mvi(&mut self, address: usize) {
+        self.index = address;
     }
 
-    fn jmi(&mut self, address: u16) {
-        self.jmp(address + self.registers[0] as u16);
+    fn jmi(&mut self, address: usize) {
+        self.jmp(address + self.registers[0] as usize);
     }
 
-    fn rand(&mut self, register: u8, max: u8) {
-        self.registers[register as usize] = self.rand.gen::<u8>() & max;
+    fn rand(&mut self, register: usize, mask: u8) {
+        self.registers[register] = self.rand.gen::<u8>() & mask;
     }
 
-    fn sprite(&mut self, r1: u8, r2: u8, h: u8) {
-        let x = self.registers[r1 as usize];
-        let y = self.registers[r2 as usize];
+    fn sprite(&mut self, rx: usize, ry: usize, h: usize) {
+        let x = self.registers[rx];
+        let y = self.registers[ry];
 
         self.registers[15] = 0;
-        for y_line in 0..(h as usize) {
+        for y_line in 0..h {
             let y_coord = (y as usize + y_line) % DISPLAY_HEIGHT;
             let pixel = self.ram[self.index + y_line];
 
@@ -381,58 +302,58 @@ impl Chip8 {
         self.should_draw = true;
     }
 
-    fn skpr(&mut self, r: u8) {
-        let key = self.registers[r as usize] as usize;
+    fn skpr(&mut self, r: usize) {
+        let key = self.registers[r] as usize;
         if self.keys[key] {
             self.pc += 2;
         }
     }
 
-    fn skup(&mut self, r: u8) {
-        let key = self.registers[r as usize] as usize;
+    fn skup(&mut self, r: usize) {
+        let key = self.registers[r] as usize;
         if !self.keys[key] {
             self.pc += 2;
         }
     }
 
-    fn gdelay_vr(&mut self, r: u8) {
-        self.registers[r as usize] = self.program_timer;
+    fn gdelay_vr(&mut self, r: usize) {
+        self.registers[r] = self.program_timer;
     }
 
-    fn key_vr(&mut self, r: u8) {
+    fn key_vr(&mut self, r: usize) {
         self.wait_for_input = Some(r);
     }
 
-    fn sdelay_vr(&mut self, r: u8) {
-        self.program_timer = self.registers[r as usize];
+    fn sdelay_vr(&mut self, r: usize) {
+        self.program_timer = self.registers[r];
     }
 
-    fn ssound_vr(&mut self, r: u8) {
-        self.sound_timer = self.registers[r as usize];
+    fn ssound_vr(&mut self, r: usize) {
+        self.sound_timer = self.registers[r];
     }
 
-    fn adi(&mut self, r: u8) {
-        self.index += self.registers[r as usize] as usize;
+    fn adi(&mut self, r: usize) {
+        self.index += self.registers[r] as usize;
     }
 
-    fn font(&mut self, r: u8) {
-        self.index = self.registers[r as usize] as usize * 5;
+    fn font(&mut self, r: usize) {
+        self.index = self.registers[r] as usize * 5;
     }
 
-    fn bcd_vr(&mut self, r: u8) {
-        self.ram[self.index + 0] = self.registers[r as usize] / 100;
-        self.ram[self.index + 1] = (self.registers[r as usize] / 10) % 10;
-        self.ram[self.index + 2] = (self.registers[r as usize] % 100) % 10;
+    fn bcd_vr(&mut self, r: usize) {
+        self.ram[self.index + 0] = self.registers[r] / 100;
+        self.ram[self.index + 1] = (self.registers[r] / 10) % 10;
+        self.ram[self.index + 2] = (self.registers[r] % 100) % 10;
     }
 
-    fn str_v0_vr(&mut self, r: u8) {
-        for i in 0..=(r as usize) {
+    fn str_v0_vr(&mut self, r: usize) {
+        for i in 0..=r {
             self.ram[(self.index) + i] = self.registers[i];
         }
     }
 
-    fn ldr_v0_vr(&mut self, r: u8) {
-        for i in 0..=(r as usize) {
+    fn ldr_v0_vr(&mut self, r: usize) {
+        for i in 0..=r {
             self.registers[i] = self.ram[self.index + i];
         }
     }
@@ -894,7 +815,7 @@ mod tests {
         let mut chip = Chip8::new();
 
         for i in 0..0xF {
-            chip.font(i as u8);
+            chip.font(i);
 
             for y in 0..5 {
                 chip.ram[chip.index + y] = FONT_ATLAS[i * 5 + y];
