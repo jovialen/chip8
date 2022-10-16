@@ -1,1 +1,7 @@
+# Rust
 /target
+
+# Profiling
+perf.data
+perf.svg
+
