@@ -1,5 +1,4 @@
 use log::info;
-use rand::Rng;
 
 use crate::instruction::Instruction;
 
@@ -36,7 +35,6 @@ pub struct Chip8 {
     stack: Vec<usize>,
     program_timer: u8,
     sound_timer: u8,
-    rand: rand::rngs::ThreadRng,
 
     // Display
     vram: [u8; DISPLAY_WIDTH * DISPLAY_HEIGHT],
@@ -62,7 +60,6 @@ impl Chip8 {
             stack: Vec::with_capacity(16),
             program_timer: 0,
             sound_timer: 0,
-            rand: rand::thread_rng(),
             vram: [0; DISPLAY_WIDTH * DISPLAY_HEIGHT],
             should_draw: false,
             keys: [false; 16],
@@ -287,7 +284,7 @@ impl Chip8 {
     }
 
     fn rand(&mut self, register: usize, mask: u8) {
-        self.registers[register] = self.rand.gen::<u8>() & mask;
+        self.registers[register] = rand::random::<u8>() & mask;
     }
 
     fn sprite(&mut self, rx: usize, ry: usize, h: usize) {
