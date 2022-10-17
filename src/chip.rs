@@ -96,6 +96,10 @@ impl Chip8 {
         self.should_draw
     }
 
+    pub fn waiting_for_input(&self) -> bool {
+        self.wait_for_input.is_some()
+    }
+
     pub fn draw(&mut self, target: &mut [u8]) {
         for (i, pix) in target.chunks_exact_mut(4).enumerate() {
             let pixel = self.vram[i];

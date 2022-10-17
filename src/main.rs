@@ -86,7 +86,14 @@ fn main() {
                     _ => return,
                 };
 
-                chip.set_key(key, pressed);
+                // Trigger a new cycle immediatly if the chip is waiting for input
+                if chip.waiting_for_input() && pressed {
+                    chip.set_key(key, pressed);
+                    chip.cycle();
+                    last_time = Instant::now();
+                } else {
+                    chip.set_key(key, pressed);
+                }
             }
             WindowEvent::Resized(physical_size) => {
                 pixels.resize_surface(physical_size.width, physical_size.height);
