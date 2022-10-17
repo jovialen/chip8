@@ -11,14 +11,10 @@ use winit::{
     dpi::LogicalSize,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{Window, WindowBuilder},
 };
 
-fn main() {
-    // Read command line arguments
-    let args = cli::Args::parse();
-
-    // Create window
+fn create_window(args: &cli::Args) -> (EventLoop<()>, Window, Pixels) {
     let event_loop = EventLoop::new();
 
     let min_size = LogicalSize::new(DISPLAY_WIDTH as f64, DISPLAY_HEIGHT as f64);
@@ -33,12 +29,22 @@ fn main() {
 
     let size = window.inner_size();
     let surface = SurfaceTexture::new(size.width, size.height, &window);
-    let mut pixels = Pixels::new(
+    let pixels = Pixels::new(
         chip::DISPLAY_WIDTH as u32,
         chip::DISPLAY_HEIGHT as u32,
         surface,
     )
     .expect("Failed to create the pixel frame buffer");
+
+    (event_loop, window, pixels)
+}
+
+fn main() {
+    // Read command line arguments
+    let args = cli::Args::parse();
+
+    // Create window
+    let (event_loop, window, mut pixels) = create_window(&args);
 
     // Create chip
     let mut chip = Chip8::new();
