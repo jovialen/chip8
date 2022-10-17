@@ -1,3 +1,4 @@
+use log::info;
 use rand::Rng;
 
 use crate::instruction::Instruction;
@@ -70,6 +71,7 @@ impl Chip8 {
     }
 
     pub fn load(&mut self, program: &Vec<u8>) {
+        info!("Loading program into ROM (len: {})", program.len());
         for (i, v) in program.iter().enumerate() {
             self.ram[RAM_PROGRAM_SPACE_START + i] = *v;
         }
@@ -78,6 +80,15 @@ impl Chip8 {
     pub fn cycle(&mut self) {
         if self.wait_for_input.is_none() {
             let instruction = self.fetch_opcode();
+
+            info!(
+                "pc: {:<4x} opcode: {:<2x} {:<4x} instruction: {:x?}",
+                self.pc,
+                self.ram[self.pc],
+                self.ram[self.pc + 1],
+                instruction
+            );
+
             self.pc += 2;
             self.interpret(instruction);
             self.timer_tick();

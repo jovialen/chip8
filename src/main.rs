@@ -40,6 +40,9 @@ fn create_window(args: &cli::Args) -> (EventLoop<()>, Window, Pixels) {
 }
 
 fn main() {
+    // Start logger
+    env_logger::init();
+
     // Read command line arguments
     let args = cli::Args::parse();
 

@@ -10,4 +10,5 @@ clap = { version = "4.0", features = [ "derive" ] }
 rand = "0.8.5"
 winit = "0.27"
 pixels = "0.9"
-
+env_logger = "0.9"
+log = "0.4"
