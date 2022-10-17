@@ -27,18 +27,23 @@ const FONT_ATLAS: [u8; 5 * 16] = [
 ];
 
 pub struct Chip8 {
+    // Cpu
     ram: [u8; 0xFFF],
-    vram: [u8; DISPLAY_WIDTH * DISPLAY_HEIGHT],
     registers: [u8; 16],
     index: usize,
     pc: usize,
     stack: Vec<usize>,
     program_timer: u8,
     sound_timer: u8,
-    keys: [bool; 16],
-    should_draw: bool,
-    wait_for_input: Option<usize>,
     rand: rand::rngs::ThreadRng,
+
+    // Display
+    vram: [u8; DISPLAY_WIDTH * DISPLAY_HEIGHT],
+    should_draw: bool,
+
+    // Keyboard
+    keys: [bool; 16],
+    wait_for_input: Option<usize>,
 }
 
 impl Chip8 {
@@ -50,17 +55,17 @@ impl Chip8 {
 
         Self {
             ram,
-            vram: [0; DISPLAY_WIDTH * DISPLAY_HEIGHT],
             registers: [0; 16],
             index: 0,
             pc: RAM_PROGRAM_SPACE_START,
             stack: Vec::with_capacity(16),
             program_timer: 0,
             sound_timer: 0,
-            keys: [false; 16],
-            should_draw: false,
-            wait_for_input: None,
             rand: rand::thread_rng(),
+            vram: [0; DISPLAY_WIDTH * DISPLAY_HEIGHT],
+            should_draw: false,
+            keys: [false; 16],
+            wait_for_input: None,
         }
     }
 
@@ -814,11 +819,12 @@ mod tests {
     fn test_font_atlas() {
         let mut chip = Chip8::new();
 
-        for i in 0..0xF {
-            chip.font(i);
+        for i in 0..=0xF {
+            chip.mov_vr_xx(0, i as u8);
+            chip.font(0);
 
             for y in 0..5 {
-                chip.ram[chip.index + y] = FONT_ATLAS[i * 5 + y];
+                assert_eq!(chip.ram[chip.index + y], FONT_ATLAS[i * 5 + y]);
             }
         }
     }
