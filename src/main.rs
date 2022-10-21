@@ -49,7 +49,7 @@ fn main() {
     let (event_loop, window, mut pixels) = create_window(&args);
 
     // Create chip
-    let mut chip = Chip8::new();
+    let mut chip = Chip8::new(args.foreground_color, args.background_color);
 
     // Load ROM into chip
     let rom = std::fs::read(args.rom).expect("Failed to read ROM file");

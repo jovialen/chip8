@@ -1,6 +1,7 @@
 mod instruction;
 mod time;
 
+use hex_color::HexColor;
 use log::info;
 
 use instruction::Instruction;
@@ -46,14 +47,22 @@ pub struct Chip8 {
     // Display
     vram: [u8; DISPLAY_SIZE],
     should_draw: bool,
+    foreground_color: HexColor,
+    background_color: HexColor,
 
     // Keyboard
     keys: [bool; 16],
     wait_for_input: Option<usize>,
 }
 
+impl Default for Chip8 {
+    fn default() -> Self {
+        Self::new(HexColor::WHITE, HexColor::BLACK)
+    }
+}
+
 impl Chip8 {
-    pub fn new() -> Self {
+    pub fn new(foreground_color: HexColor, background_color: HexColor) -> Self {
         let mut ram = [0; 0xFFF];
 
         // Copy font atlas into ram
@@ -69,6 +78,8 @@ impl Chip8 {
             sound_timer: Timer::new(),
             vram: [0; DISPLAY_SIZE],
             should_draw: false,
+            foreground_color,
+            background_color,
             keys: [false; 16],
             wait_for_input: None,
         }
@@ -109,7 +120,15 @@ impl Chip8 {
     pub fn draw(&mut self, target: &mut [u8]) {
         for (i, pix) in target.chunks_exact_mut(4).enumerate() {
             let pixel = self.vram[i];
-            pix.copy_from_slice(&[pixel, pixel, pixel, 0xFF]);
+
+            let color = if pixel != 0x00 {
+                let f = self.foreground_color;
+                [f.r, f.g, f.b, f.a]
+            } else {
+                let b = self.background_color;
+                [b.r, b.g, b.b, b.a]
+            };
+            pix.copy_from_slice(&color);
         }
         self.should_draw = false;
     }
@@ -381,7 +400,7 @@ mod tests {
     fn test_load_program() {
         let program = vec![0x0, 0x20, 0xAF, 0x0B0];
 
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
         chip.load(&program);
 
         assert_eq!(
@@ -393,12 +412,12 @@ mod tests {
     #[test]
     fn test_load_rand_programs() {
         for _ in 0..100 {
-            let mut program: Vec<u8> = Vec::new();
+            let mut program: Vec<u8> = Vec::default();
             for _ in 0..100 {
                 program.push(rand::random());
             }
 
-            let mut chip = Chip8::new();
+            let mut chip = Chip8::default();
             chip.load(&program);
 
             assert_eq!(
@@ -410,7 +429,7 @@ mod tests {
 
     #[test]
     fn test_subroutine() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.jmp(0x300);
         chip.call_subroutine(0x500);
@@ -436,7 +455,7 @@ mod tests {
 
     #[test]
     fn test_jmp() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.jmp(0xFFFF);
         assert_eq!(chip.pc, 0xFFFF);
@@ -450,7 +469,7 @@ mod tests {
 
     #[test]
     fn test_skeq_vr_xx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         let org_pc = chip.pc;
         chip.skeq_vr_xx(0, 10);
@@ -468,7 +487,7 @@ mod tests {
 
     #[test]
     fn test_skne_vr_xx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         let org_pc = chip.pc;
         chip.skne_vr_xx(0, 0);
@@ -486,7 +505,7 @@ mod tests {
 
     #[test]
     fn test_skeq_vr_vx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         let org_pc = chip.pc;
         chip.skeq_vr_vx(0, 1);
@@ -505,7 +524,7 @@ mod tests {
 
     #[test]
     fn test_mov_vr_xx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(0, 1);
         assert_eq!(chip.registers[0], 1);
@@ -525,7 +544,7 @@ mod tests {
 
     #[test]
     fn test_add_vr_xx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         assert_eq!(chip.registers[0], 0);
 
@@ -546,7 +565,7 @@ mod tests {
 
     #[test]
     fn test_mov_vr_vx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(5, 10);
         assert_eq!(chip.registers[5], 10);
@@ -566,7 +585,7 @@ mod tests {
 
     #[test]
     fn test_or_vr_vx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(0, 0xFF);
         chip.mov_vr_xx(1, 0x0F);
@@ -581,7 +600,7 @@ mod tests {
 
     #[test]
     fn test_and_vr_vx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(0, 0xF0);
         chip.mov_vr_xx(1, 0x0F);
@@ -596,7 +615,7 @@ mod tests {
 
     #[test]
     fn test_xor_vr_vx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(0, 0xF0);
         chip.mov_vr_xx(1, 0xFF);
@@ -616,7 +635,7 @@ mod tests {
 
     #[test]
     fn test_add_vr_vx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(0, 10);
         chip.mov_vr_xx(1, 15);
@@ -631,7 +650,7 @@ mod tests {
 
     #[test]
     fn test_sub_vr_vx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(0, 10);
         chip.mov_vr_xx(1, 10);
@@ -659,7 +678,7 @@ mod tests {
 
     #[test]
     fn test_shr_vr() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(0, 0b0000_1010);
         chip.shr_vr(0);
@@ -673,7 +692,7 @@ mod tests {
 
     #[test]
     fn test_rsb_vr_vx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(0, 10);
         chip.mov_vr_xx(1, 15);
@@ -701,7 +720,7 @@ mod tests {
 
     #[test]
     fn test_shl_vr() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(0, 0b0101_0000);
         chip.shl_vr(0);
@@ -715,7 +734,7 @@ mod tests {
 
     #[test]
     fn test_skne_vr_vx() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         let org_pc = chip.pc;
         chip.mov_vr_xx(0, 0);
@@ -732,7 +751,7 @@ mod tests {
 
     #[test]
     fn test_mvi() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mvi(0xFF);
         assert_eq!(chip.index, 0xFF);
@@ -746,7 +765,7 @@ mod tests {
 
     #[test]
     fn test_jmi() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(0, 0);
         chip.jmi(20);
@@ -766,7 +785,7 @@ mod tests {
         // Testing randomness is hard, so just check if
         // there is a lot of variance in the values
 
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         let mut last = chip.registers[0];
         let mut same_count = 0;
@@ -786,7 +805,7 @@ mod tests {
 
     #[test]
     fn test_delay() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mov_vr_xx(0, 10);
         chip.sdelay_vr(0);
@@ -801,7 +820,7 @@ mod tests {
 
     #[test]
     fn test_adi() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mvi(10);
         chip.mov_vr_xx(0, 5);
@@ -815,7 +834,7 @@ mod tests {
 
     #[test]
     fn test_font_atlas() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         for i in 0..=0xF {
             chip.mov_vr_xx(0, i as u8);
@@ -829,7 +848,7 @@ mod tests {
 
     #[test]
     fn test_bcd() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mvi(0x300);
         chip.mov_vr_xx(0, 123);
@@ -850,7 +869,7 @@ mod tests {
 
     #[test]
     fn test_str_v0_vr() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mvi(0x300);
         chip.mov_vr_xx(0, 10);
@@ -865,7 +884,7 @@ mod tests {
 
     #[test]
     fn test_ldr_v0_vr() {
-        let mut chip = Chip8::new();
+        let mut chip = Chip8::default();
 
         chip.mvi(0x300);
         chip.mov_vr_xx(0, 10);

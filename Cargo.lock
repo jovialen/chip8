@@ -154,6 +154,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "env_logger",
+ "hex_color",
  "log",
  "pixels",
  "rand",
@@ -621,6 +622,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "hex_color"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff917051cbc87800de93ddcf39b59c9f2a0a4d809411a341c0ac422771219808"
+dependencies = [
+ "rand",
 ]
 
 [[package]]
