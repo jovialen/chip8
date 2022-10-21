@@ -49,7 +49,7 @@ fn main() {
     let (event_loop, window, mut pixels) = create_window(&args);
 
     // Create chip
-    let mut chip = Chip8::new(args.foreground_color, args.background_color);
+    let mut chip = Chip8::new();
 
     // Load ROM into chip
     let rom = std::fs::read(args.rom).expect("Failed to read ROM file");
@@ -105,7 +105,11 @@ fn main() {
             _ => (),
         },
         Event::RedrawRequested(window_id) if window_id == window.id() => {
-            chip.draw(pixels.get_frame());
+            chip.draw(
+                pixels.get_frame(),
+                args.foreground_color,
+                args.background_color,
+            );
 
             if pixels
                 .render()
