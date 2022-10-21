@@ -1,6 +1,6 @@
 use log::info;
 
-use crate::instruction::Instruction;
+use crate::{instruction::Instruction, time::Timer};
 
 pub const RAM_PROGRAM_SPACE_START: usize = 0x200;
 pub const DISPLAY_WIDTH: usize = 64;
@@ -33,8 +33,8 @@ pub struct Chip8 {
     index: usize,
     pc: usize,
     stack: Vec<usize>,
-    program_timer: u8,
-    sound_timer: u8,
+    program_timer: Timer,
+    sound_timer: Timer,
 
     // Display
     vram: [u8; DISPLAY_WIDTH * DISPLAY_HEIGHT],
@@ -58,8 +58,8 @@ impl Chip8 {
             index: 0,
             pc: RAM_PROGRAM_SPACE_START,
             stack: Vec::with_capacity(16),
-            program_timer: 0,
-            sound_timer: 0,
+            program_timer: Timer::new(),
+            sound_timer: Timer::new(),
             vram: [0; DISPLAY_WIDTH * DISPLAY_HEIGHT],
             should_draw: false,
             keys: [false; 16],
@@ -88,7 +88,6 @@ impl Chip8 {
 
             self.pc += 2;
             self.interpret(instruction);
-            self.timer_tick();
         }
     }
 
@@ -158,15 +157,6 @@ impl Chip8 {
             Instruction::StoreBcd(src) => self.bcd_vr(src),
             Instruction::Store(to) => self.str_v0_vr(to),
             Instruction::Load(to) => self.ldr_v0_vr(to),
-        }
-    }
-
-    fn timer_tick(&mut self) {
-        if self.sound_timer != 0 {
-            self.sound_timer -= 1;
-        }
-        if self.program_timer != 0 {
-            self.program_timer -= 1;
         }
     }
 
@@ -334,7 +324,7 @@ impl Chip8 {
     }
 
     fn gdelay_vr(&mut self, r: usize) {
-        self.registers[r] = self.program_timer;
+        self.registers[r] = self.program_timer.get();
     }
 
     fn key_vr(&mut self, r: usize) {
@@ -342,11 +332,11 @@ impl Chip8 {
     }
 
     fn sdelay_vr(&mut self, r: usize) {
-        self.program_timer = self.registers[r];
+        self.program_timer.set(self.registers[r]);
     }
 
     fn ssound_vr(&mut self, r: usize) {
-        self.sound_timer = self.registers[r];
+        self.sound_timer.set(self.registers[r]);
     }
 
     fn adi(&mut self, r: usize) {
@@ -794,23 +784,12 @@ mod tests {
         chip.mov_vr_xx(0, 10);
         chip.sdelay_vr(0);
         chip.ssound_vr(0);
-        assert_eq!(chip.program_timer, 10);
-        assert_eq!(chip.sound_timer, 10);
-
-        chip.timer_tick();
-        chip.timer_tick();
-        chip.timer_tick();
-        assert_eq!(chip.program_timer, 7);
-        assert_eq!(chip.sound_timer, 7);
+        assert_eq!(chip.program_timer.get(), 10);
+        assert_eq!(chip.sound_timer.get(), 10);
 
         chip.mov_vr_xx(0, 0);
         chip.sdelay_vr(0);
-        assert_eq!(chip.program_timer, 0);
-        assert_eq!(chip.sound_timer, 7);
-
-        chip.timer_tick();
-        assert_eq!(chip.program_timer, 0);
-        assert_eq!(chip.sound_timer, 6);
+        assert_eq!(chip.program_timer.get(), 0);
     }
 
     #[test]

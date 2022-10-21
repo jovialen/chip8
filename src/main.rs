@@ -1,6 +1,7 @@
 mod chip;
 mod cli;
 mod instruction;
+mod time;
 
 use std::time::Instant;
 
