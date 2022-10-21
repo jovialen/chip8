@@ -1,10 +1,15 @@
+mod instruction;
+mod time;
+
 use log::info;
 
-use crate::{instruction::Instruction, time::Timer};
+use instruction::Instruction;
+use time::Timer;
 
 pub const RAM_PROGRAM_SPACE_START: usize = 0x200;
 pub const DISPLAY_WIDTH: usize = 64;
 pub const DISPLAY_HEIGHT: usize = 32;
+pub const DISPLAY_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT;
 
 #[rustfmt::skip]
 const FONT_ATLAS: [u8; 5 * 16] = [
@@ -37,7 +42,7 @@ pub struct Chip8 {
     sound_timer: Timer,
 
     // Display
-    vram: [u8; DISPLAY_WIDTH * DISPLAY_HEIGHT],
+    vram: [u8; DISPLAY_SIZE],
     should_draw: bool,
 
     // Keyboard
@@ -60,7 +65,7 @@ impl Chip8 {
             stack: Vec::with_capacity(16),
             program_timer: Timer::new(),
             sound_timer: Timer::new(),
-            vram: [0; DISPLAY_WIDTH * DISPLAY_HEIGHT],
+            vram: [0; DISPLAY_SIZE],
             should_draw: false,
             keys: [false; 16],
             wait_for_input: None,
@@ -161,7 +166,7 @@ impl Chip8 {
     }
 
     fn clear(&mut self) {
-        self.vram = [0; DISPLAY_WIDTH * DISPLAY_HEIGHT];
+        self.vram = [0; DISPLAY_SIZE];
         self.should_draw = true;
     }
 
