@@ -2,8 +2,6 @@ mod chip;
 mod cli;
 mod clock;
 
-use std::time::Instant;
-
 use chip::{Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH};
 use clap::Parser;
 use clock::Clock;
@@ -15,7 +13,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-fn create_window(args: &cli::Args) -> (EventLoop<()>, Window, Pixels) {
+fn create_window(args: &cli::Args) -> (EventLoop<()>, Window) {
     let event_loop = EventLoop::new();
 
     let min_size = LogicalSize::new(DISPLAY_WIDTH as f64, DISPLAY_HEIGHT as f64);
@@ -28,16 +26,14 @@ fn create_window(args: &cli::Args) -> (EventLoop<()>, Window, Pixels) {
         .build(&event_loop)
         .expect("Failed to create window");
 
+    (event_loop, window)
+}
+
+fn create_pixels_framebuffer(window: &Window) -> Pixels {
     let size = window.inner_size();
     let surface = SurfaceTexture::new(size.width, size.height, &window);
-    let pixels = Pixels::new(
-        chip::DISPLAY_WIDTH as u32,
-        chip::DISPLAY_HEIGHT as u32,
-        surface,
-    )
-    .expect("Failed to create the pixel frame buffer");
-
-    (event_loop, window, pixels)
+    Pixels::new(DISPLAY_WIDTH as u32, DISPLAY_HEIGHT as u32, surface)
+        .expect("Failed to create the pixel framebuffer.")
 }
 
 fn main() {
@@ -47,8 +43,9 @@ fn main() {
     // Read command line arguments
     let args = cli::Args::parse();
 
-    // Create window
-    let (event_loop, window, mut pixels) = create_window(&args);
+    // Create window and framebuffer
+    let (event_loop, window) = create_window(&args);
+    let mut pixels = create_pixels_framebuffer(&window);
 
     // Create chip
     let mut chip = Chip8::new();
