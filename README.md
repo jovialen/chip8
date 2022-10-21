@@ -2,6 +2,12 @@
 
 An implementation of the [Chip8](https://en.wikipedia.org/wiki/CHIP-8) interpreter by Joseph Weisbecker in Rust.
 
+<p align="center">
+  <img width="600"
+       alt="Example Window"
+       src="./extra/example_window.png">
+</p>
+
 ## ROMs
 
 This project only contains the emulator, and not any ROMs to run on it. Many interesting Chip8 ROMs can be found [here](https://github.com/kripod/chip8-roms).
