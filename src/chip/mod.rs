@@ -11,6 +11,8 @@ pub const DISPLAY_WIDTH: usize = 64;
 pub const DISPLAY_HEIGHT: usize = 32;
 pub const DISPLAY_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT;
 
+const FLAG_REGISTER: usize = 0xF;
+
 #[rustfmt::skip]
 const FONT_ATLAS: [u8; 5 * 16] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -237,7 +239,7 @@ impl Chip8 {
         let (res, carry) = x.overflowing_add(y);
 
         self.registers[dest] = res;
-        self.registers[15] = carry as u8;
+        self.registers[FLAG_REGISTER] = carry as u8;
     }
 
     fn sub_vr_vx(&mut self, dest: usize, other: usize) {
@@ -245,12 +247,12 @@ impl Chip8 {
         let y = self.registers[other];
 
         self.registers[dest] = x.wrapping_sub(y);
-        self.registers[15] = (x >= y) as u8;
+        self.registers[FLAG_REGISTER] = (x >= y) as u8;
     }
 
     fn shr_vr(&mut self, r: usize) {
         let src = self.registers[r];
-        self.registers[15] = src & 0b0000_0001; // Store least signifigant bit in the flag
+        self.registers[FLAG_REGISTER] = src & 0b0000_0001; // Store least signifigant bit in the flag
         self.registers[r] >>= 1;
     }
 
@@ -258,13 +260,13 @@ impl Chip8 {
         let x = self.registers[dest];
         let y = self.registers[other];
 
-        self.registers[15] = (y >= x) as u8;
+        self.registers[FLAG_REGISTER] = (y >= x) as u8;
         self.registers[dest] = y.wrapping_sub(x);
     }
 
     fn shl_vr(&mut self, r: usize) {
         let src = self.registers[r];
-        self.registers[15] = (src & 0b1000_0000) >> 7; // Store most signifigant bit in the flag
+        self.registers[FLAG_REGISTER] = (src & 0b1000_0000) >> 7; // Store most signifigant bit in the flag
         self.registers[r] <<= 1;
     }
 
@@ -290,7 +292,7 @@ impl Chip8 {
         let x = self.registers[rx];
         let y = self.registers[ry];
 
-        self.registers[15] = 0;
+        self.registers[FLAG_REGISTER] = 0;
         for y_line in 0..h {
             let y_coord = (y as usize + y_line) % DISPLAY_HEIGHT;
             let pixel = self.ram[self.index + y_line];
@@ -302,7 +304,7 @@ impl Chip8 {
 
                     // Check if this pixel will be erased, and if so, set the flag
                     if self.vram[display_coord] == 0xFF {
-                        self.registers[15] |= 1;
+                        self.registers[FLAG_REGISTER] |= 1;
                     }
 
                     self.vram[display_coord] ^= 0xFF;
@@ -635,24 +637,24 @@ mod tests {
         chip.mov_vr_xx(1, 10);
         chip.sub_vr_vx(0, 1);
         assert_eq!(chip.registers[0], 0);
-        assert_eq!(chip.registers[15], 1);
+        assert_eq!(chip.registers[FLAG_REGISTER], 1);
 
         chip.mov_vr_xx(2, 15);
         chip.mov_vr_xx(3, 10);
         chip.sub_vr_vx(2, 3);
         assert_eq!(chip.registers[2], 5);
-        assert_eq!(chip.registers[15], 1);
+        assert_eq!(chip.registers[FLAG_REGISTER], 1);
 
         chip.mov_vr_xx(3, 10);
         chip.sub_vr_vx(2, 3);
         assert_eq!(chip.registers[2], 5u8.wrapping_sub(10));
-        assert_eq!(chip.registers[15], 0);
+        assert_eq!(chip.registers[FLAG_REGISTER], 0);
 
         chip.mov_vr_xx(4, 30);
         chip.mov_vr_xx(5, 20);
         chip.sub_vr_vx(4, 5);
         assert_eq!(chip.registers[4], 10);
-        assert_eq!(chip.registers[15], 1);
+        assert_eq!(chip.registers[FLAG_REGISTER], 1);
     }
 
     #[test]
@@ -662,11 +664,11 @@ mod tests {
         chip.mov_vr_xx(0, 0b0000_1010);
         chip.shr_vr(0);
         assert_eq!(chip.registers[0], 0b0000_0101);
-        assert_eq!(chip.registers[15], 0);
+        assert_eq!(chip.registers[FLAG_REGISTER], 0);
 
         chip.shr_vr(0);
         assert_eq!(chip.registers[0], 0b0000_0010);
-        assert_eq!(chip.registers[15], 1);
+        assert_eq!(chip.registers[FLAG_REGISTER], 1);
     }
 
     #[test]
@@ -677,24 +679,24 @@ mod tests {
         chip.mov_vr_xx(1, 15);
         chip.rsb_vr_vx(0, 1);
         assert_eq!(chip.registers[0], 5);
-        assert_eq!(chip.registers[15], 1);
+        assert_eq!(chip.registers[FLAG_REGISTER], 1);
 
         chip.mov_vr_xx(1, 6);
         chip.rsb_vr_vx(0, 1);
         assert_eq!(chip.registers[0], 1);
-        assert_eq!(chip.registers[15], 1);
+        assert_eq!(chip.registers[FLAG_REGISTER], 1);
 
         chip.mov_vr_xx(0, 15);
         chip.mov_vr_xx(1, 10);
         chip.rsb_vr_vx(0, 1);
         assert_eq!(chip.registers[0], 10u8.wrapping_sub(15));
-        assert_eq!(chip.registers[15], 0);
+        assert_eq!(chip.registers[FLAG_REGISTER], 0);
 
         chip.mov_vr_xx(0, 10);
         chip.mov_vr_xx(1, 15);
         chip.rsb_vr_vx(0, 1);
         assert_eq!(chip.registers[0], 5);
-        assert_eq!(chip.registers[15], 1);
+        assert_eq!(chip.registers[FLAG_REGISTER], 1);
     }
 
     #[test]
@@ -704,11 +706,11 @@ mod tests {
         chip.mov_vr_xx(0, 0b0101_0000);
         chip.shl_vr(0);
         assert_eq!(chip.registers[0], 0b1010_0000);
-        assert_eq!(chip.registers[15], 0);
+        assert_eq!(chip.registers[FLAG_REGISTER], 0);
 
         chip.shl_vr(0);
         assert_eq!(chip.registers[0], 0b0100_0000);
-        assert_eq!(chip.registers[15], 1);
+        assert_eq!(chip.registers[FLAG_REGISTER], 1);
     }
 
     #[test]
