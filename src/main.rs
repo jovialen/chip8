@@ -1,10 +1,12 @@
 mod chip;
 mod cli;
+mod clock;
 
 use std::time::Instant;
 
 use chip::{Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH};
 use clap::Parser;
+use clock::Clock;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
     dpi::LogicalSize,
@@ -55,8 +57,8 @@ fn main() {
     let rom = std::fs::read(args.rom).expect("Failed to read ROM file");
     chip.load(&rom);
 
-    // Prepare timer
-    let mut last_time = Instant::now();
+    // Prepare clock
+    let mut clock = Clock::new(args.hz);
 
     // Start the main loop
     event_loop.run(move |event, _, control_flow| match event {
@@ -88,8 +90,7 @@ fn main() {
                 // Trigger a new cycle immediatly if the chip is waiting for input
                 if chip.waiting_for_input() && pressed {
                     chip.set_key(key, pressed);
-                    chip.cycle();
-                    last_time = Instant::now();
+                    clock.trigger(|| chip.cycle());
                 } else {
                     chip.set_key(key, pressed);
                 }
@@ -120,15 +121,9 @@ fn main() {
             }
         }
         Event::MainEventsCleared => {
-            // Trigger 60 clock cycles per second
-            if last_time.elapsed().as_secs_f64() > (1.0 / args.hz as f64) {
-                last_time = Instant::now();
-                chip.cycle();
-
-                // Redraw the window if the chip display has changed
-                if chip.should_draw() {
-                    window.request_redraw();
-                }
+            // Redraw the window if the chip display has been updated.
+            if clock.tick(|| chip.cycle()) && chip.should_draw() {
+                window.request_redraw();
             }
         }
         _ => (),
