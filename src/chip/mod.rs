@@ -159,9 +159,9 @@ impl Chip8 {
             Instruction::Xor { dest, other } => self.xor_vr_vx(dest, other),
             Instruction::AddRegToReg { dest, other } => self.add_vr_vx(dest, other),
             Instruction::SubRegFromReg { dest, other } => self.sub_vr_vx(dest, other),
-            Instruction::ShiftRight(register) => self.shr_vr(register),
+            Instruction::ShiftRight { dest, src } => self.shr_vr(dest, src),
             Instruction::SubnRegFromReg { dest, other } => self.rsb_vr_vx(dest, other),
-            Instruction::ShiftLeft(register) => self.shl_vr(register),
+            Instruction::ShiftLeft { dest, src } => self.shl_vr(dest, src),
             Instruction::SkipNeToReg { x, y } => self.skne_vr_vx(x, y),
             Instruction::MovConstToI(addr) => self.mvi(addr),
             Instruction::JumpI(addr) => self.jmi(addr),
@@ -264,10 +264,10 @@ impl Chip8 {
         self.registers[FLAG_REGISTER] = (x >= y) as u8;
     }
 
-    fn shr_vr(&mut self, r: usize) {
-        let src = self.registers[r];
-        self.registers[FLAG_REGISTER] = src & 0b0000_0001; // Store least signifigant bit in the flag
-        self.registers[r] >>= 1;
+    fn shr_vr(&mut self, dest: usize, src: usize) {
+        let content = self.registers[src];
+        self.registers[FLAG_REGISTER] = content & 0b0000_0001; // Store least signifigant bit in the flag
+        self.registers[dest] = content >> 1;
     }
 
     fn rsb_vr_vx(&mut self, dest: usize, other: usize) {
@@ -278,10 +278,10 @@ impl Chip8 {
         self.registers[dest] = y.wrapping_sub(x);
     }
 
-    fn shl_vr(&mut self, r: usize) {
-        let src = self.registers[r];
-        self.registers[FLAG_REGISTER] = (src & 0b1000_0000) >> 7; // Store most signifigant bit in the flag
-        self.registers[r] <<= 1;
+    fn shl_vr(&mut self, dest: usize, src: usize) {
+        let content = self.registers[src];
+        self.registers[FLAG_REGISTER] = (content & 0b1000_0000) >> 7; // Store most signifigant bit in the flag
+        self.registers[dest] = content << 1;
     }
 
     fn skne_vr_vx(&mut self, rx: usize, ry: usize) {
@@ -675,12 +675,12 @@ mod tests {
     fn test_shr_vr() {
         let mut chip = Chip8::new();
 
-        chip.mov_vr_xx(0, 0b0000_1010);
-        chip.shr_vr(0);
+        chip.mov_vr_xx(1, 0b0000_1010);
+        chip.shr_vr(0, 1);
         assert_eq!(chip.registers[0], 0b0000_0101);
         assert_eq!(chip.registers[FLAG_REGISTER], 0);
 
-        chip.shr_vr(0);
+        chip.shr_vr(0, 0);
         assert_eq!(chip.registers[0], 0b0000_0010);
         assert_eq!(chip.registers[FLAG_REGISTER], 1);
     }
@@ -717,12 +717,12 @@ mod tests {
     fn test_shl_vr() {
         let mut chip = Chip8::new();
 
-        chip.mov_vr_xx(0, 0b0101_0000);
-        chip.shl_vr(0);
+        chip.mov_vr_xx(1, 0b0101_0000);
+        chip.shl_vr(0, 1);
         assert_eq!(chip.registers[0], 0b1010_0000);
         assert_eq!(chip.registers[FLAG_REGISTER], 0);
 
-        chip.shl_vr(0);
+        chip.shl_vr(0, 0);
         assert_eq!(chip.registers[0], 0b0100_0000);
         assert_eq!(chip.registers[FLAG_REGISTER], 1);
     }

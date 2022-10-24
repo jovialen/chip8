@@ -33,11 +33,11 @@ pub enum Instruction {
     /// Subtract value of other from dest.
     SubRegFromReg { dest: usize, other: usize },
     /// Bitshift register to the right once.
-    ShiftRight(usize),
+    ShiftRight { dest: usize, src: usize },
     /// Subtract value of dest from other, and store the result in dest.
     SubnRegFromReg { dest: usize, other: usize },
     /// Bitshift register to the left once.
-    ShiftLeft(usize),
+    ShiftLeft { dest: usize, src: usize },
     /// Skip if value of register x is not equal to value of register y.
     SkipNeToReg { x: usize, y: usize },
     /// Set the value of the index pointer.
@@ -113,9 +113,9 @@ impl From<u16> for Instruction {
                 0x0003 => Self::Xor { dest: x, other: y },
                 0x0004 => Self::AddRegToReg { dest: x, other: y },
                 0x0005 => Self::SubRegFromReg { dest: x, other: y },
-                0x0006 => Self::ShiftRight(x),
+                0x0006 => Self::ShiftRight { dest: x, src: y },
                 0x0007 => Self::SubnRegFromReg { dest: x, other: y },
-                0x000E => Self::ShiftLeft(x),
+                0x000E => Self::ShiftLeft { dest: x, src: y },
                 _ => panic!("Invalid 0x8000 opcode {:#06x}", opcode),
             },
             0x9000 => Self::SkipNeToReg { x, y },
@@ -348,9 +348,18 @@ mod tests {
 
     #[test]
     fn test_shr_opcode() {
-        assert_eq!(Instruction::from(0x8006), Instruction::ShiftRight(0));
-        assert_eq!(Instruction::from(0x8106), Instruction::ShiftRight(1));
-        assert_eq!(Instruction::from(0x8506), Instruction::ShiftRight(5));
+        assert_eq!(
+            Instruction::from(0x8006),
+            Instruction::ShiftRight { dest: 0, src: 0 }
+        );
+        assert_eq!(
+            Instruction::from(0x8106),
+            Instruction::ShiftRight { dest: 1, src: 0 }
+        );
+        assert_eq!(
+            Instruction::from(0x8516),
+            Instruction::ShiftRight { dest: 5, src: 1 }
+        );
     }
 
     #[test]
@@ -367,9 +376,18 @@ mod tests {
 
     #[test]
     fn test_shl_opcode() {
-        assert_eq!(Instruction::from(0x800e), Instruction::ShiftLeft(0));
-        assert_eq!(Instruction::from(0x810e), Instruction::ShiftLeft(1));
-        assert_eq!(Instruction::from(0x850e), Instruction::ShiftLeft(5));
+        assert_eq!(
+            Instruction::from(0x800E),
+            Instruction::ShiftLeft { dest: 0, src: 0 }
+        );
+        assert_eq!(
+            Instruction::from(0x810E),
+            Instruction::ShiftLeft { dest: 1, src: 0 }
+        );
+        assert_eq!(
+            Instruction::from(0x851E),
+            Instruction::ShiftLeft { dest: 5, src: 1 }
+        );
     }
 
     #[test]
