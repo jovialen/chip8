@@ -682,6 +682,22 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "superchip-bitshift")]
+    fn test_shr_vr() {
+        let mut chip = Chip8::new();
+
+        chip.mov_vr_xx(0, 0b0000_1010);
+        chip.shr_vr(0, 0);
+        assert_eq!(chip.registers[0], 0b0000_0101);
+        assert_eq!(chip.registers[FLAG_REGISTER], 0);
+
+        chip.shr_vr(0, 0);
+        assert_eq!(chip.registers[0], 0b0000_0010);
+        assert_eq!(chip.registers[FLAG_REGISTER], 1);
+    }
+
+    #[test]
+    #[cfg(not(feature = "superchip-bitshift"))]
     fn test_shr_vr() {
         let mut chip = Chip8::new();
 
@@ -724,6 +740,22 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "superchip-bitshift")]
+    fn test_shl_vr() {
+        let mut chip = Chip8::new();
+
+        chip.mov_vr_xx(0, 0b0101_0000);
+        chip.shl_vr(0, 0);
+        assert_eq!(chip.registers[0], 0b1010_0000);
+        assert_eq!(chip.registers[FLAG_REGISTER], 0);
+
+        chip.shl_vr(0, 0);
+        assert_eq!(chip.registers[0], 0b0100_0000);
+        assert_eq!(chip.registers[FLAG_REGISTER], 1);
+    }
+
+    #[test]
+    #[cfg(not(feature = "superchip-bitshift"))]
     fn test_shl_vr() {
         let mut chip = Chip8::new();
 
