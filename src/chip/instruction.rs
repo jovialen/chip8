@@ -43,7 +43,14 @@ pub enum Instruction {
     /// Set the value of the index pointer.
     MovConstToI(usize),
     /// Jump to the address + the value of register 0.
+    #[cfg(not(feature = "bxnn"))]
     JumpI(usize),
+    /// Jump to the address + the value of the x register.
+    /// 
+    /// This instruction was added by the superchip, but
+    /// is used in many Chip8 programs.
+    #[cfg(feature = "bxnn")]
+    SuperJumpI { addr: usize, x: usize },
     /// Store a random u8 in dest and bitwise-& with the mask.
     Rand { dest: usize, mask: u8 },
     /// Draw a sprite with the given height to the x and y on the screen.
@@ -120,7 +127,10 @@ impl From<u16> for Instruction {
             },
             0x9000 => Self::SkipNeToReg { x, y },
             0xA000 => Self::MovConstToI(nnn),
+            #[cfg(not(feature = "bxnn"))]
             0xB000 => Self::JumpI(nnn),
+            #[cfg(feature = "bxnn")]
+            0xB000 => Self::SuperJumpI { addr: nnn, x },
             0xC000 => Self::Rand { dest: x, mask: nn },
             0xD000 => Self::Sprite { x, y, height: n },
             0xE000 => match opcode & 0x00FF {
@@ -418,10 +428,34 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "bxnn"))]
     fn test_jmi_opcode() {
         assert_eq!(Instruction::from(0xB000), Instruction::JumpI(0));
         assert_eq!(Instruction::from(0xB123), Instruction::JumpI(0x123));
         assert_eq!(Instruction::from(0xBFFF), Instruction::JumpI(0xFFF));
+    }
+
+    #[test]
+    #[cfg(feature = "bxnn")]
+    fn test_super_jmi_opcode() {
+        assert_eq!(
+            Instruction::from(0xB000),
+            Instruction::SuperJumpI { addr: 0, x: 0 }
+        );
+        assert_eq!(
+            Instruction::from(0xB123),
+            Instruction::SuperJumpI {
+                addr: 0x123,
+                x: 0x1
+            }
+        );
+        assert_eq!(
+            Instruction::from(0xBFFF),
+            Instruction::SuperJumpI {
+                addr: 0xFFF,
+                x: 0xF
+            }
+        );
     }
 
     #[test]

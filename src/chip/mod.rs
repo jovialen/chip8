@@ -164,7 +164,10 @@ impl Chip8 {
             Instruction::ShiftLeft { dest, src } => self.shl_vr(dest, src),
             Instruction::SkipNeToReg { x, y } => self.skne_vr_vx(x, y),
             Instruction::MovConstToI(addr) => self.mvi(addr),
+            #[cfg(not(feature = "bxnn"))]
             Instruction::JumpI(addr) => self.jmi(addr),
+            #[cfg(feature = "bxnn")]
+            Instruction::SuperJumpI { addr, x } => self.jmi_superchip(addr, x),
             Instruction::Rand { dest, mask } => self.rand(dest, mask),
             Instruction::Sprite { x, y, height } => self.sprite(x, y, height),
             Instruction::SkipIfPressed(key) => self.skpr(key),
@@ -304,8 +307,14 @@ impl Chip8 {
         self.index = address;
     }
 
+    #[cfg(not(feature = "bxnn"))]
     fn jmi(&mut self, address: usize) {
         self.jmp(address + self.registers[0] as usize);
+    }
+
+    #[cfg(feature = "bxnn")]
+    fn jmi_superchip(&mut self, address: usize, rx: usize) {
+        self.jmp(address + self.registers[rx] as usize);
     }
 
     fn rand(&mut self, register: usize, mask: u8) {
@@ -801,6 +810,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "bxnn"))]
     fn test_jmi() {
         let mut chip = Chip8::new();
 
@@ -815,6 +825,25 @@ mod tests {
         chip.mov_vr_xx(0, 20);
         chip.jmi(20);
         assert_eq!(chip.pc, 40);
+    }
+
+    #[test]
+    #[cfg(feature = "bxnn")]
+    fn test_jmi_superchip() {
+        let mut chip = Chip8::new();
+
+        chip.mov_vr_xx(0, 10);
+        chip.mov_vr_xx(2, 20);
+        chip.jmi_superchip(220, 2);
+        assert_eq!(chip.pc, 240);
+
+        chip.mov_vr_xx(0, 0);
+        chip.jmi_superchip(240, 0);
+        assert_eq!(chip.pc, 240);
+
+        chip.mov_vr_xx(0, 10);
+        chip.jmi_superchip(0, 0);
+        assert_eq!(chip.pc, 10);
     }
 
     #[test]
