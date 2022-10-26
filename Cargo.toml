@@ -13,5 +13,6 @@ log = "0.4"
 hex_color = "2.0.0"
 
 [features]
+default = [ "superchip-bitshift", "bxnn" ]
 superchip-bitshift = []
 bxnn = []
