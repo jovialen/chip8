@@ -264,10 +264,15 @@ impl Chip8 {
         self.registers[FLAG_REGISTER] = (x >= y) as u8;
     }
 
+    #[allow(unused_variables)] // src is not used with feature superchip-bitshift
     fn shr_vr(&mut self, dest: usize, src: usize) {
-        let content = self.registers[src];
-        self.registers[FLAG_REGISTER] = content & 0b0000_0001; // Store least signifigant bit in the flag
-        self.registers[dest] = content >> 1;
+        #[cfg(not(feature = "superchip-bitshift"))]
+        {
+            self.registers[dest] = self.registers[src];
+        }
+
+        self.registers[FLAG_REGISTER] = self.registers[dest] & 0b0000_0001; // Store least signifigant bit in the flag
+        self.registers[dest] >>= 1;
     }
 
     fn rsb_vr_vx(&mut self, dest: usize, other: usize) {
@@ -278,10 +283,15 @@ impl Chip8 {
         self.registers[dest] = y.wrapping_sub(x);
     }
 
+    #[allow(unused_variables)] // src is not used with feature superchip-bitshift
     fn shl_vr(&mut self, dest: usize, src: usize) {
-        let content = self.registers[src];
-        self.registers[FLAG_REGISTER] = (content & 0b1000_0000) >> 7; // Store most signifigant bit in the flag
-        self.registers[dest] = content << 1;
+        #[cfg(not(feature = "superchip-bitshift"))]
+        {
+            self.registers[dest] = self.registers[src];
+        }
+
+        self.registers[FLAG_REGISTER] = (self.registers[dest] & 0b1000_0000) >> 7; // Store most signifigant bit in the flag
+        self.registers[dest] <<= 1;
     }
 
     fn skne_vr_vx(&mut self, rx: usize, ry: usize) {

@@ -13,3 +13,6 @@ pixels = "0.9"
 env_logger = "0.9"
 log = "0.4"
 hex_color = "2.0.0"
+
+[features]
+superchip-bitshift = []
