@@ -16,3 +16,4 @@ hex_color = "2.0.0"
 default = [ "superchip-bitshift", "bxnn" ]
 superchip-bitshift = []
 bxnn = []
+store-load-modify-index = []

@@ -397,11 +397,21 @@ impl Chip8 {
         for i in 0..=r {
             self.ram[(self.index) + i] = self.registers[i];
         }
+
+        #[cfg(feature = "store-load-modify-index")]
+        {
+            self.index = self.index + r + 1;
+        }
     }
 
     fn ldr_v0_vr(&mut self, r: usize) {
         for i in 0..=r {
             self.registers[i] = self.ram[self.index + i];
+        }
+
+        #[cfg(feature = "store-load-modify-index")]
+        {
+            self.index = self.index + r + 1;
         }
     }
 }
@@ -946,6 +956,16 @@ mod tests {
         assert_eq!(chip.ram[0x300 + 0], 10);
         assert_eq!(chip.ram[0x300 + 1], 20);
         assert_eq!(chip.ram[0x300 + 5], 60);
+
+        #[cfg(feature = "store-load-modify-index")]
+        {
+            assert_eq!(chip.index, 0x306);
+        }
+
+        #[cfg(not(feature = "store-load-modify-index"))]
+        {
+            assert_eq!(chip.index, 0x300);
+        }
     }
 
     #[test]
@@ -962,9 +982,20 @@ mod tests {
         chip.mov_vr_xx(1, 0);
         chip.mov_vr_xx(2, 0);
 
+        chip.mvi(0x300);
         chip.ldr_v0_vr(2);
         assert_eq!(chip.ram[0x300 + 0], 10);
         assert_eq!(chip.ram[0x300 + 1], 15);
         assert_eq!(chip.ram[0x300 + 2], 20);
+
+        #[cfg(feature = "store-load-modify-index")]
+        {
+            assert_eq!(chip.index, 0x303);
+        }
+
+        #[cfg(not(feature = "store-load-modify-index"))]
+        {
+            assert_eq!(chip.index, 0x300);
+        }
     }
 }
