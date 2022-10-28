@@ -43,7 +43,7 @@ pub enum Instruction {
     /// Set the value of the index pointer.
     MovConstToI(usize),
     /// Jump to the address + the value of register 0.
-    #[cfg(not(feature = "bxnn"))]
+    #[cfg_attr(feature = "bxnn", allow(dead_code))]
     JumpI(usize),
     /// Jump to the address + the value of the x register.
     /// 

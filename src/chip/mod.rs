@@ -160,7 +160,7 @@ impl Chip8 {
                 instruction
             );
 
-            self.pc += 2;
+            self.next();
             self.interpret(instruction);
         }
     }
@@ -239,6 +239,11 @@ impl Chip8 {
         Instruction::from_be_bytes(bytes)
     }
 
+    /// Increment the [program counter](`Chip8::pc`) once.
+    fn next(&mut self) {
+        self.pc += 2;
+    }
+
     /// Interpret an instruction on the CPU.
     ///
     /// Does not increment the program counter.
@@ -264,7 +269,6 @@ impl Chip8 {
             Instruction::ShiftLeft { dest, src } => self.shl_vr(dest, src),
             Instruction::SkipNeToReg { x, y } => self.skne_vr_vx(x, y),
             Instruction::MovConstToI(addr) => self.mvi(addr),
-            #[cfg(not(feature = "bxnn"))]
             Instruction::JumpI(addr) => self.jmi(addr),
             #[cfg(feature = "bxnn")]
             Instruction::SuperJumpI { addr, x } => self.jmi_superchip(addr, x),
@@ -333,7 +337,7 @@ impl Chip8 {
     /// * `value` - The constant to compare with the register.
     fn skeq_vr_xx(&mut self, register: usize, value: u8) {
         if self.registers[register] == value {
-            self.pc += 2;
+            self.next();
         }
     }
 
@@ -345,7 +349,7 @@ impl Chip8 {
     /// * `value` - The constant to compare with the register.
     fn skne_vr_xx(&mut self, register: usize, value: u8) {
         if self.registers[register] != value {
-            self.pc += 2;
+            self.next();
         }
     }
 
@@ -357,7 +361,7 @@ impl Chip8 {
     /// * `ry` - The y register.
     fn skeq_vr_vx(&mut self, rx: usize, ry: usize) {
         if self.registers[rx] == self.registers[ry] {
-            self.pc += 2;
+            self.next();
         }
     }
 
@@ -535,7 +539,7 @@ impl Chip8 {
     /// * `ry` - The y register.
     fn skne_vr_vx(&mut self, rx: usize, ry: usize) {
         if self.registers[rx] != self.registers[ry] {
-            self.pc += 2;
+            self.next();
         }
     }
 
@@ -636,7 +640,7 @@ impl Chip8 {
     fn skpr(&mut self, r: usize) {
         let key = self.registers[r] as usize;
         if self.keys[key] {
-            self.pc += 2;
+            self.next();
         }
     }
 
