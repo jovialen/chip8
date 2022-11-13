@@ -104,7 +104,7 @@ fn main() {
         },
         Event::RedrawRequested(window_id) if window_id == window.id() => {
             chip.draw(
-                pixels.get_frame(),
+                pixels.get_frame_mut(),
                 args.foreground_color,
                 args.background_color,
             );
