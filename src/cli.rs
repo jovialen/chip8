@@ -17,5 +17,6 @@ pub struct Args {
     pub background_color: HexColor,
 
     /// Path to the ROM file with the program to run.
-    pub rom: std::path::PathBuf,
+    #[arg(short = 'r', long = "rom")]
+    pub rom: Option<std::path::PathBuf>,
 }

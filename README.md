@@ -15,7 +15,7 @@ To use this project, [the Rust programming language](https://www.rust-lang.org/)
 Either download or clone the repository to your local machine, and then build and run it with [cargo](https://doc.rust-lang.org/cargo/index.html).
 
 ```console
-foo@bar:~$ ./chip8-emu [OPTIONS] <ROM>
+foo@bar:~$ ./chip8-emu [OPTIONS]
 ```
 
 To see all available options, use the help flag.

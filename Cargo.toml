@@ -5,12 +5,17 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.0", features = [ "derive" ] }
+native-dialog = "0.6.3"
 rand = "0.8.5"
 winit = "0.27"
 pixels = "0.10"
 env_logger = "0.9"
 log = "0.4"
 hex_color = "2.0.0"
+
+[target.'cfg(windows)'.dependencies.native-dialog]
+version = "0.6.3"
+features = ["windows_dpi_awareness", "windows_visual_styles"]
 
 [features]
 default = [ "superchip-bitshift", "bxnn" ]

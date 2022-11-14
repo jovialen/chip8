@@ -2,9 +2,12 @@ mod chip;
 mod cli;
 mod clock;
 
+use std::ffi::OsStr;
+
 use chip::{Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH};
 use clap::Parser;
 use clock::Clock;
+use native_dialog::FileDialog;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
     dpi::LogicalSize,
@@ -13,15 +16,12 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-fn create_window(args: &cli::Args) -> (EventLoop<()>, Window) {
+fn create_window(rom_name: &OsStr) -> (EventLoop<()>, Window) {
     let event_loop = EventLoop::new();
 
     let min_size = LogicalSize::new(DISPLAY_WIDTH as f64, DISPLAY_HEIGHT as f64);
     let window = WindowBuilder::new()
-        .with_title(format!(
-            "Chip8 Emulator - {:?}",
-            args.rom.file_name().unwrap()
-        ))
+        .with_title(format!("Chip8 Emulator - {:?}", rom_name))
         .with_min_inner_size(min_size)
         .build(&event_loop)
         .expect("Failed to create window");
@@ -43,15 +43,26 @@ fn main() {
     // Read command line arguments
     let args = cli::Args::parse();
 
+    let rom_path = if let Some(rom) = args.rom {
+        rom
+    } else {
+        FileDialog::new()
+            .set_location("~")
+            .add_filter("Chip 8 Rom", &["c8", "ch8", "rom"])
+            .show_open_single_file()
+            .expect("File dialog failed.")
+            .expect("No rom file chosen.")
+    };
+
     // Create window and framebuffer
-    let (event_loop, window) = create_window(&args);
+    let (event_loop, window) = create_window(rom_path.file_name().unwrap());
     let mut pixels = create_pixels_framebuffer(&window);
 
     // Create chip
     let mut chip = Chip8::new();
 
     // Load ROM into chip
-    let rom = std::fs::read(args.rom).expect("Failed to read ROM file");
+    let rom = std::fs::read(rom_path).expect("Failed to read ROM file");
     chip.load(&rom);
 
     // Prepare clock
