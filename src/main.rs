@@ -1,3 +1,9 @@
+// Enable the windows subsystem on release for windows
+#![cfg_attr(
+    all(target_os = "windows", not(debug_assertions)),
+    windows_subsystem = "windows"
+)]
+
 mod chip;
 mod cli;
 mod clock;
