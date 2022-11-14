@@ -8,6 +8,22 @@ An implementation of the [Chip8](https://en.wikipedia.org/wiki/CHIP-8) interpret
        src="./extra/example_window.png">
 </p>
 
+## Use
+
+To use this project, [the Rust programming language](https://www.rust-lang.org/) must be downloaded and installed on your system.
+
+Either download or clone the repository to your local machine, and then build and run it with [cargo](https://doc.rust-lang.org/cargo/index.html).
+
+```console
+foo@bar:~$ ./chip8-emu [OPTIONS] <ROM>
+```
+
+To see all available options, use the help flag.
+
+```console
+foo@bar:~$ ./chip8-emu --help
+```
+
 ## ROMs
 
 This project only contains the emulator, and not any ROMs to run on it. Many interesting Chip8 ROMs can be found [here](https://github.com/kripod/chip8-roms).
