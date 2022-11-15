@@ -86,6 +86,13 @@ fn main() {
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
             WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+            WindowEvent::KeyboardInput {
+                is_synthetic: true, ..
+            } => (),
+            WindowEvent::DroppedFile(path) => {
+                let rom = std::fs::read(&path).expect("Failed to read provided file.");
+                chip.load(&rom);
+            }
             WindowEvent::KeyboardInput { input, .. } => {
                 let pressed = input.state == ElementState::Pressed;
 

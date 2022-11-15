@@ -9,7 +9,9 @@ use time::Timer;
 /// The total size of emulator the CPU RAM.
 pub const RAM_SIZE: usize = 0x1000;
 /// Memory location in RAM for the start of the font data.
-pub const RAM_FONT_SPACE_START: usize = 0x0;
+const RAM_FONT_SPACE_START: usize = 0x0;
+/// Memory location in RAM where the font data ends.
+const RAM_FONT_SPACE_END: usize = RAM_FONT_SPACE_START + FONT_ATLAS.len();
 /// Memory location in RAM for the start of ROM programs.
 pub const RAM_PROGRAM_SPACE_START: usize = 0x200;
 /// Width (in pixels) of the emulator display.
@@ -113,7 +115,7 @@ impl Chip8 {
         let mut ram = [0; RAM_SIZE];
 
         // Copy font atlas into ram
-        ram[RAM_FONT_SPACE_START..(RAM_FONT_SPACE_START + 80)].copy_from_slice(&FONT_ATLAS);
+        ram[RAM_FONT_SPACE_START..RAM_FONT_SPACE_END].copy_from_slice(&FONT_ATLAS);
 
         Self {
             ram,
@@ -130,6 +132,12 @@ impl Chip8 {
         }
     }
 
+    /// Reset the chip to its initial state.
+    pub fn reset(&mut self) {
+        // This feels wrong, but it works.
+        *self = Self::new();
+    }
+
     /// Load a program ROM into the CPU RAM.
     ///
     /// # Arguments
@@ -137,6 +145,9 @@ impl Chip8 {
     /// * `program` - A vector containing the compiled source of a Chip8 ROM.
     pub fn load(&mut self, program: &Vec<u8>) {
         info!("Loading program into ROM (len: {})", program.len());
+
+        self.reset();
+
         for (i, v) in program.iter().enumerate() {
             self.ram[RAM_PROGRAM_SPACE_START + i] = *v;
         }
