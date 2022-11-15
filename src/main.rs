@@ -8,8 +8,6 @@ mod chip;
 mod cli;
 mod clock;
 
-use std::ffi::OsStr;
-
 use chip::{Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH};
 use clap::Parser;
 use clock::Clock;
@@ -22,12 +20,14 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-fn create_window(rom_name: &OsStr) -> (EventLoop<()>, Window) {
+const WINDOW_TITLE: &str = "Chip 8 Emulator";
+
+fn create_window() -> (EventLoop<()>, Window) {
     let event_loop = EventLoop::new();
 
     let min_size = LogicalSize::new(DISPLAY_WIDTH as f64, DISPLAY_HEIGHT as f64);
     let window = WindowBuilder::new()
-        .with_title(format!("Chip8 Emulator - {:?}", rom_name))
+        .with_title(WINDOW_TITLE)
         .with_min_inner_size(min_size)
         .build(&event_loop)
         .expect("Failed to create window");
@@ -49,10 +49,16 @@ fn main() {
     // Read command line arguments
     let args = cli::Args::parse();
 
+    // Create window and framebuffer
+    let (event_loop, window) = create_window();
+    let mut pixels = create_pixels_framebuffer(&window);
+
+    // Get the ROM file
     let rom_path = if let Some(rom) = args.rom {
         rom
     } else {
         FileDialog::new()
+            .set_owner(&window)
             .set_location("~")
             .add_filter("Chip 8 Rom", &["c8", "ch8", "rom"])
             .show_open_single_file()
@@ -60,16 +66,21 @@ fn main() {
             .expect("No rom file chosen.")
     };
 
-    // Create window and framebuffer
-    let (event_loop, window) = create_window(rom_path.file_name().unwrap());
-    let mut pixels = create_pixels_framebuffer(&window);
-
     // Create chip
     let mut chip = Chip8::new();
 
     // Load ROM into chip
-    let rom = std::fs::read(rom_path).expect("Failed to read ROM file");
+    let rom = std::fs::read(&rom_path).expect("Failed to read ROM file");
     chip.load(&rom);
+
+    window.set_title(
+        format!(
+            "{} - {:?}",
+            WINDOW_TITLE,
+            rom_path.file_name().unwrap_or_default(),
+        )
+        .as_str(),
+    );
 
     // Prepare clock
     let mut clock = Clock::new(args.hz);
